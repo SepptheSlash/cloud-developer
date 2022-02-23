@@ -10,7 +10,7 @@ router.get('/', async (req: Request, res: Response) => {
     const items = await FeedItem.findAndCountAll({order: [['id', 'DESC']]});
     items.rows.map((item) => {
             if(item.url) {
-                item.url = AWS.getGetSignedUrl(item.url);
+                item.url = AWS.getGetSignedUrl(item.url); //this uses signedURL pattern
             }
     });
     res.send(items);
@@ -18,13 +18,44 @@ router.get('/', async (req: Request, res: Response) => {
 
 //@TODO
 //Add an endpoint to GET a specific resource by Primary Key
+router.get('/:id', async (req: Request, res: Response) => {
+    let { id } = req.params;
+    //console.log(id)
+    if (!id) {
+        return res.status(400).send('id is required');
+    }
+    const item = await FeedItem.findOne({where: {id: id}});
+
+    if (!item) {
+        return res.status(404).send('id not found');
+
+    }
+    
+    res.status(200).send(item);
+});
+
 
 // update a specific resource
 router.patch('/:id', 
-    requireAuth, 
+    requireAuth,
     async (req: Request, res: Response) => {
-        //@TODO try it yourself
-        res.status(500).send("not implemented")
+        let { id } = req.params;
+        
+        if (!id) {
+            return res.status(400).send('id is required');
+        }
+
+        let updateValues = {caption: 'changed caption'};
+        const item = await FeedItem.update(updateValues, {where: {id: id}})
+
+        const updated_item = await FeedItem.findOne({where: {id: id}});
+
+        if (!updated_item) {
+            return res.status(404).send('id not found');
+    
+        }
+        res.status(200).send(updated_item);
+        //res.status(500).send("not implemented")
 });
 
 
@@ -33,7 +64,16 @@ router.get('/signed-url/:fileName',
     requireAuth, 
     async (req: Request, res: Response) => {
     let { fileName } = req.params;
-    const url = AWS.getPutSignedUrl(fileName);
+    const url = AWS.getPutSignedUrl(fileName); //this uses signedURL pattern
+    res.status(201).send({url: url});
+});
+
+// Get a signed url to put a new item in the bucket
+router.get('/signed-url-retrieve/:fileName', 
+    requireAuth, 
+    async (req: Request, res: Response) => {
+    let { fileName } = req.params;
+    const url = AWS.getGetSignedUrl(fileName); //this uses signedURL pattern
     res.status(201).send({url: url});
 });
 
